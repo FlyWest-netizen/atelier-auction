@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
-export default function LoginPage() {
+function LoginForm() {
   const supabase = supabaseBrowser();
   const params = useSearchParams();
   const next = params.get("next") || "/";
@@ -31,5 +31,13 @@ export default function LoginPage() {
         </>
       )}
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<main style={{ maxWidth: 400, margin: "80px auto" }}>Loading…</main>}>
+      <LoginForm />
+    </Suspense>
   );
 }
