@@ -31,25 +31,54 @@ const DURATIONS = [
   { label: "7 days", ms: 7 * 24 * 60 * 60 * 1000 },
 ];
 
+function ImageSlot({ label, required, image, onChange, onRemove }) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}{required ? " (required)" : " (optional)"}</label>
+      {image ? (
+        <div style={{ position: "relative", width: 120, height: 120 }}>
+          <img src={image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 4 }} />
+          <button type="button" onClick={onRemove} style={{ position: "absolute", top: -6, right: -6, background: "var(--ink)", color: "#fff", borderRadius: "50%", width: 22, height: 22, border: "none" }}>×</button>
+        </div>
+      ) : (
+        <label style={{ width: 120, height: 120, border: "1.5px dashed var(--line)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "#fff", fontSize: 24, color: "#b3ab97" }}>
+          +
+          <input type="file" accept="image/*" onChange={onChange} style={{ display: "none" }} />
+        </label>
+      )}
+    </div>
+  );
+}
+
 export default function SubmitPage() {
   const router = useRouter();
   const supabase = supabaseBrowser();
 
   const [form, setForm] = useState({
     title: "", artist: "", medium: "", editionInfo: "", yearClaimed: "",
-    description: "", startingBid: "", duration: DURATIONS[1].ms,
+    dimensions: "", description: "", startingBid: "", duration: DURATIONS[1].ms,
   });
-  const [images, setImages] = useState([]);
-  const [stage, setStage] = useState("form"); // form | scanning | report
+  const [fullImage, setFullImage] = useState(null);
+  const [signatureImage, setSignatureImage] = useState(null);
+  const [extraImages, setExtraImages] = useState([]);
+  const [stage, setStage] = useState("form");
   const [report, setReport] = useState(null);
   const [err, setErr] = useState("");
 
   function set(key, value) { setForm((f) => ({ ...f, [key]: value })); }
 
-  async function handleFiles(e) {
+  function handleSingle(setter) {
+    return async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setter(await resizeImage(file));
+    };
+  }
+
+  async function handleExtras(e) {
     const files = Array.from(e.target.files || []);
     const resized = await Promise.all(files.map((f) => resizeImage(f)));
-    setImages((prev) => [...prev, ...resized].slice(0, 6));
+    setExtraImages((prev) => [...prev, ...resized].slice(0, 4));
   }
 
   async function runAuthentication() {
@@ -60,19 +89,21 @@ export default function SubmitPage() {
       setErr("Title, artist, medium, completion year, and starting bid are required.");
       return;
     }
-    if (images.length < 2) {
-      setErr("Add at least 2 photos — the full piece and the signature.");
+    if (!fullImage || !signatureImage) {
+      setErr("Both the full artwork photo and the signature close-up are required.");
       return;
     }
     setErr("");
     setStage("scanning");
+
+    const images = [fullImage, signatureImage, ...extraImages];
 
     const res = await fetch("/api/authenticate", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         images,
-        meta: { artist: form.artist, medium: form.medium, editionInfo: form.editionInfo, yearClaimed: form.yearClaimed, description: form.description },
+        meta: { artist: form.artist, medium: form.medium, editionInfo: form.editionInfo, yearClaimed: form.yearClaimed, dimensions: form.dimensions, description: form.description },
       }),
     });
 
@@ -88,6 +119,7 @@ export default function SubmitPage() {
   }
 
   async function confirmListing() {
+    const images = [fullImage, signatureImage, ...extraImages];
     const res = await fetch("/api/lots", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -132,16 +164,39 @@ export default function SubmitPage() {
   return (
     <main style={{ maxWidth: 560, margin: "0 auto", padding: "40px 20px 80px" }}>
       <h1 className="serif" style={{ fontSize: 30 }}>List a piece</h1>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 20 }}>
-        <input type="file" accept="image/*" multiple onChange={handleFiles} />
-        <div style={{ display: "flex", gap: 8 }}>
-          {images.map((img, i) => <img key={i} src={img} alt="" style={{ width: 60, height: 60, objectFit: "cover" }} />)}
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 20 }}>
+        <div>
+          <p style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 10 }}>The full artwork will always be the cover photo shown across the site. The signature photo is only ever shown inside the Verification tab.</p>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <ImageSlot label="Full artwork" required image={fullImage} onChange={handleSingle(setFullImage)} onRemove={() => setFullImage(null)} />
+            <ImageSlot label="Signature close-up" required image={signatureImage} onChange={handleSingle(setSignatureImage)} onRemove={() => setSignatureImage(null)} />
+          </div>
         </div>
+
+        <div>
+          <label style={labelStyle}>Optional extra photos — back, certificate, frame, texture ({extraImages.length}/4)</label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {extraImages.map((img, i) => (
+              <div key={i} style={{ position: "relative", width: 76, height: 76 }}>
+                <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 4 }} />
+                <button type="button" onClick={() => setExtraImages((p) => p.filter((_, idx) => idx !== i))} style={{ position: "absolute", top: -6, right: -6, background: "var(--ink)", color: "#fff", borderRadius: "50%", width: 20, height: 20, border: "none" }}>×</button>
+              </div>
+            ))}
+            {extraImages.length < 4 && (
+              <label style={{ width: 76, height: 76, border: "1.5px dashed var(--line)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "#fff" }}>
+                +
+                <input type="file" accept="image/*" multiple onChange={handleExtras} style={{ display: "none" }} />
+              </label>
+            )}
+          </div>
+        </div>
+
         <input placeholder="Title" value={form.title} onChange={(e) => set("title", e.target.value)} />
         <input placeholder="Artist" value={form.artist} onChange={(e) => set("artist", e.target.value)} />
         <input placeholder="Medium" value={form.medium} onChange={(e) => set("medium", e.target.value)} />
         <input placeholder="Completion year" value={form.yearClaimed} onChange={(e) => set("yearClaimed", e.target.value)} />
         <input placeholder="Edition (blank if unique)" value={form.editionInfo} onChange={(e) => set("editionInfo", e.target.value)} />
+        <input placeholder="Dimensions (optional, e.g. 24 x 36 in)" value={form.dimensions} onChange={(e) => set("dimensions", e.target.value)} />
         <textarea placeholder="Description" value={form.description} onChange={(e) => set("description", e.target.value)} />
         <input type="number" placeholder="Starting bid (USD)" value={form.startingBid} onChange={(e) => set("startingBid", e.target.value)} />
         <select value={form.duration} onChange={(e) => set("duration", Number(e.target.value))}>
@@ -153,3 +208,5 @@ export default function SubmitPage() {
     </main>
   );
 }
+
+const labelStyle = { display: "block", fontSize: 11.5, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6 };
