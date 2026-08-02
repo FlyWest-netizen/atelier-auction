@@ -103,3 +103,123 @@ export default async function Home({ searchParams }) {
   const soldLots = items.filter((l) => new Date(l.ends_at) <= now && Number(l.current_bid) > Number(l.starting_bid));
 
   const featured = [...active].sort((a, b) => Number(b.current_bid) - Number(a.current_bid)).slice(0, 4);
+  const newlyAdded = active.slice(0, 4);
+  const recentlySold = [...soldLots].sort((a, b) => new Date(b.ends_at) - new Date(a.ends_at)).slice(0, 4);
+  const heroLot = featured[0] || active[0];
+
+  const bidCounts = {};
+  (bids || []).forEach((b) => { bidCounts[b.lot_id] = (bidCounts[b.lot_id] || 0) + 1; });
+
+  const artistTotals = {};
+  items.forEach((lot) => {
+    const count = bidCounts[lot.id] || 0;
+    if (count > 0) artistTotals[lot.artist] = (artistTotals[lot.artist] || 0) + count;
+  });
+  const trendingArtists = Object.entries(artistTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([artist, count]) => ({
+      artist,
+      count,
+      lot: items.find((l) => l.artist === artist && bidCounts[l.id] > 0),
+    }));
+
+  return (
+    <div>
+      <style>{`
+        .lot-card:hover img { transform: scale(1.03); }
+        .lot-card img { transition: transform .4s ease; }
+      `}</style>
+      <main style={{ maxWidth: 1160, margin: "0 auto", padding: "0 24px 80px" }}>
+        <header style={{ padding: "32px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span className="serif" style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.3 }}>The Atelier Auction</span>
+          <Link href="/submit" className="mono" style={{ background: "var(--brass)", padding: "10px 18px", borderRadius: 3, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+            + List Artwork
+          </Link>
+        </header>
+
+        {heroLot ? (
+          <Link href={`/lot/${heroLot.id}`} style={{ display: "block", position: "relative", borderRadius: 10, overflow: "hidden", marginBottom: 8, minHeight: 460, background: "var(--ink)" }}>
+            {heroLot.images?.[0] && (
+              <img src={heroLot.images[0]} alt={heroLot.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.72 }} />
+            )}
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(22,24,26,0.88) 0%, rgba(22,24,26,0.1) 55%)" }} />
+            <div style={{ position: "relative", padding: "48px 40px", minHeight: 460, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+              <p className="mono" style={{ color: "var(--brass-light)", fontSize: 12, letterSpacing: 2.5, marginBottom: 14 }}>
+                {active.length} LOT{active.length === 1 ? "" : "S"} · EVERY PIECE AUTHENTICATED BEFORE LISTING
+              </p>
+              <h1 className="serif" style={{ fontSize: 48, lineHeight: 1.05, color: "var(--gallery)", maxWidth: 620, fontWeight: 600, letterSpacing: -0.5 }}>
+                {heroLot.title}
+              </h1>
+              <p style={{ color: "var(--parchment)", fontSize: 15, marginTop: 10 }}>{heroLot.artist}</p>
+              <p className="mono" style={{ color: "var(--brass-light)", fontSize: 20, fontWeight: 600, marginTop: 14 }}>{fmtMoney(heroLot.current_bid)}</p>
+            </div>
+          </Link>
+        ) : (
+          <section style={{ padding: "56px 0 40px" }}>
+            <p className="mono" style={{ color: "var(--brass)", fontSize: 12, letterSpacing: 2.5, marginBottom: 12 }}>
+              EVERY PIECE AUTHENTICATED BEFORE LISTING
+            </p>
+            <h1 className="serif" style={{ fontSize: 48, lineHeight: 1.05, maxWidth: 640, fontWeight: 600, letterSpacing: -0.5 }}>
+              Where collectors meet the gavel.
+            </h1>
+          </section>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "190px 1fr", gap: 56, marginTop: 8 }}>
+          <CategorySidebar active={activeCategory} />
+
+          <div>
+            {activeCategory !== "All Art" && (
+              <p style={{ padding: "44px 0 0", color: "var(--muted)", fontSize: 13.5 }}>
+                Showing <strong style={{ color: "var(--ink)" }}>{activeCategory}</strong> — {items.length} piece{items.length === 1 ? "" : "s"}
+              </p>
+            )}
+
+            {allItems.length === 0 ? (
+              <p style={{ padding: "60px 0", color: "var(--muted)" }}>No lots yet — be the first to list one.</p>
+            ) : items.length === 0 ? (
+              <p style={{ padding: "60px 0", color: "var(--muted)" }}>No pieces in this category yet.</p>
+            ) : (
+              <>
+                <Section
+                  eyebrow="TOP VALUE, LIVE NOW"
+                  title="Featured Collection"
+                  empty={featured.length === 0 ? "No active lots yet." : null}
+                >
+                  {featured.map((lot) => <LotCard key={lot.id} lot={lot} tag="Featured" />)}
+                </Section>
+
+                <Section
+                  eyebrow="JUST LISTED"
+                  title="Newly Added"
+                  empty={newlyAdded.length === 0 ? "Nothing new right now." : null}
+                >
+                  {newlyAdded.map((lot) => <LotCard key={lot.id} lot={lot} tag="New" />)}
+                </Section>
+
+                <Section
+                  eyebrow="GETTING THE MOST BIDS"
+                  title="Trending Artists"
+                  empty={trendingArtists.length === 0 ? "No bidding activity yet — trends will show up here once bids come in." : null}
+                >
+                  {trendingArtists.map(({ artist, count, lot }) => lot && (
+                    <LotCard key={artist} lot={lot} tag={`${count} bid${count === 1 ? "" : "s"}`} />
+                  ))}
+                </Section>
+
+                <Section
+                  eyebrow="CLOSED WITH WINNING BIDS"
+                  title="Recently Sold"
+                  empty={recentlySold.length === 0 ? "No completed sales yet." : null}
+                >
+                  {recentlySold.map((lot) => <LotCard key={lot.id} lot={lot} tag="Sold" />)}
+                </Section>
+              </>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
