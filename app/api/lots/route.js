@@ -36,6 +36,7 @@ export async function POST(req) {
       artist: body.artist,
       medium: body.medium,
       edition_info: body.editionInfo || null,
+      dimensions: body.dimensions || null,
       year_claimed: body.yearClaimed,
       description: body.description,
       images: body.images,
