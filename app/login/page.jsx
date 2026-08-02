@@ -14,7 +14,7 @@ function LoginForm() {
   async function sendLink() {
     await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}${next}` },
+      options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=${next}` },
     });
     setSent(true);
   }
