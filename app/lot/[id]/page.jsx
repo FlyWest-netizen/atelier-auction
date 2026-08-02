@@ -126,6 +126,9 @@ export default function LotDetail() {
 
   return (
     <main style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 20px 80px" }}>
+      <a href="/" className="mono" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--muted)", marginBottom: 24 }}>
+        ← Back to catalog
+      </a>
       <div style={{ display: "grid", gap: 32, gridTemplateColumns: "1fr 1fr" }}>
         <div>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
