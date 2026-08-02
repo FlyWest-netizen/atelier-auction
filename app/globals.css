@@ -15,7 +15,10 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--gallery); font-family: 'Inter', sans-serif; color: var(--ink); }
-.serif { font-family: 'Fraunces', serif; }
+/* Renamed in spirit but kept as .serif for compatibility with existing components:
+   this is now a clean sans-serif display style, matching a minimal
+   gallery-marketplace look rather than a classic serif. */
+.serif { font-family: 'Inter', sans-serif; font-weight: 700; letter-spacing: -0.3px; }
 .mono { font-family: 'IBM Plex Mono', monospace; }
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; }
